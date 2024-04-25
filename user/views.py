@@ -1,6 +1,6 @@
 import base64
 import os
-
+from rest_framework import exceptions
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.mail import send_mail
@@ -8,15 +8,18 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-
 from .models import *
-from .serializers import UserSerializer, BlogSerializer
+# from .serializers import UserSerializer, BlogSerializer, MatchHighlightSerializer
+from user.serializers import *
 import pyotp
+
+from .permissions import IsSuperAdminOrReadOnly
 
 
 class UserRegistrationView(ModelViewSet):
@@ -136,7 +139,7 @@ class UserResetPasswordView(APIView):
                             status=status.HTTP_404_NOT_FOUND)
 
         if user.otp != enter_otp:
-            return Response({'error':'Invalid otp'}, status= status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Invalid otp'}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(new_password)
         user.otp = None
@@ -147,6 +150,7 @@ class UserResetPasswordView(APIView):
 
 class RolesAssignment(APIView):
     serializer_class = UserSerializer
+    permission_classes = [IsSuperAdminOrReadOnly]
 
     def post(self, request, *args, **kwargs):
         # Check if requesting user is authenticated
@@ -185,17 +189,31 @@ class RolesAssignment(APIView):
         return Response(serialized_user, status=status.HTTP_200_OK)
 
 
-class BlogView(ModelViewSet):
-    authentication_classes = [TokenAuthentication]
+
+class HighlightsviewSet(ModelViewSet):
+    queryset = MatchHighlight.objects.all()
+    serializer_class = MatchHighlightSerializer
+
+
+class MatchViewSet(ModelViewSet):
+    queryset = Match.objects.all()
+    serializer_class = MatchSerializer
     permission_classes = [IsAuthenticated]
-    queryset = Blog.objects.all()
-    serializer_class = BlogSerializer
 
-    def perform_create(self, serializer):
-        # Assign the current authenticated user as the author of the blog post
-        serializer.save(author=self.request.user)
+    def get_permissions(self):
+        """
+        Override method to apply different permissions based on the request method.
+        """
+        if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            # Restrict CRUD operations based on user role using custom permission class
+            return [IsSuperAdminOrReadOnly()]
+        return super().get_permissions()
 
-    # def list(self, request, *args, **kwargs):
-    #     if request.user.is_authenticated:
-    #         return super().list(request, *args, **kwargs)
-    #     return Response({'error': 'You are not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+    def handle_exception(self, exc):
+        """
+        Custom exception handler to return proper error responses.
+        """
+        if isinstance(exc, exceptions.PermissionDenied):
+            # Return 403 Forbidden with detailed error message
+            return Response({"detail": str(exc)}, status=403)
+        return super().handle_exception(exc)

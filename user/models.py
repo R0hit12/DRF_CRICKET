@@ -1,10 +1,12 @@
 import os
-from django.utils import timezone
 
+from django.conf import settings
+from django.utils import timezone
+from django.conf.global_settings import *
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
-
+from location_field.models.plain import PlainLocationField
 class Roles(models.Model):
     roles = models.CharField(max_length=30)
 
@@ -21,13 +23,13 @@ class User(AbstractUser):
         return self.username
 
 
-class Blog(models.Model):
-    title = models.CharField(max_length=100)
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
-    description = models.TextField(blank=True, null=True)
-
-    def __str__(self):
-        return self.title
+# class Blog(models.Model):
+#     title = models.CharField(max_length=100)
+#     author = models.ForeignKey(User, on_delete=models.CASCADE)
+#     description = models.TextField(blank=True, null=True)
+#
+#     def __str__(self):
+#         return self.title
 
 
 class Team(models.Model):
@@ -48,11 +50,11 @@ class Player(models.Model):
 class Match(models.Model):
     team1 = models.ForeignKey(Team, related_name="team_1", on_delete=models.CASCADE)
     team2 = models.ForeignKey(Team, related_name="team_2", on_delete=models.CASCADE)
-    match_date = models.DateTimeField()
+    match_date = models.DateField()
+    location = models.CharField(max_length=100)
 
     def __str__(self):
         return f'{self.team1} vs {self.team2}'
-
 
 
 def highlight_file_path(instance, filename):
@@ -73,8 +75,16 @@ class MatchHighlight(models.Model):
     def save(self, *args, **kwargs):
         """Override the save method to set the highlight_url."""
         if self.highlight and not self.highlight_url:
-            self.highlight_url = self.highlight.url
+            # Generate the URL based on the file path
+            self.highlight_url = self.get_highlight_url()
         super().save(*args, **kwargs)
+
+    def get_highlight_url(self):
+        """Generate and return the URL for the uploaded highlight file."""
+        if self.highlight:
+            # Construct the absolute URL using settings.MEDIA_URL
+            return f'{settings.MEDIA_URL}{self.highlight.name}'
+        return ''
 
     def __str__(self):
         return f"{self.match} - {self.upload_date}"

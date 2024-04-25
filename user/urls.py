@@ -6,8 +6,9 @@ router = routers.DefaultRouter()
 router.register(r'users', UserRegistrationView, basename='users')
 # router.register(r'login', UserLoginView, basename='login')
 # router.register(r'change-password', UserChangePasswordView, basename='change-password')
-# router.register(r'reset-password', UserResetPasswordView, basename='reset-password')
-router.register(r'blog', BlogView, basename='blog')
+router.register(r'highlights', HighlightsviewSet, basename='highlights')
+# router.register(r'blog', BlogView, basename='blog')
+router.register(r'match', MatchViewSet, basename= 'match')
 
 urlpatterns = [
     path('', include(router.urls)),
