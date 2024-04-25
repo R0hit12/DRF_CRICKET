@@ -48,6 +48,7 @@ class Player(models.Model):
 
 
 class Match(models.Model):
+    schedule = models.DateTimeField()
     team1 = models.ForeignKey(Team, related_name="team_1", on_delete=models.CASCADE)
     team2 = models.ForeignKey(Team, related_name="team_2", on_delete=models.CASCADE)
     match_date = models.DateField()
@@ -56,6 +57,11 @@ class Match(models.Model):
     def __str__(self):
         return f'{self.team1} vs {self.team2}'
 
+    def is_upcoming(self):
+        return self.schedule > timezone.now()
+
+    is_upcoming.boolean = True
+    is_upcoming.short_description = 'Is upcoming?'
 
 def highlight_file_path(instance, filename):
     """Generate file path for uploaded highlight files."""
