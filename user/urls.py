@@ -7,7 +7,7 @@ from .views import *
 router = routers.DefaultRouter()
 router.register(r'users', UserRegistrationView, basename='users')
 router.register(r'teams', TeamViewSet, basename='teams')
-router.register(r'like_count', HighlightLikeViewset, basename='like_count')
+# router.register(r'like_count', HighlightLikeViewset, basename='like_count')
 router.register(r'highlights', HighlightsviewSet, basename='highlights')
 router.register(r'player', PlayerViewSet, basename='player')
 router.register(r'match', MatchViewSet, basename='match')

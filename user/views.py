@@ -19,11 +19,10 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .filters import CustomHighlightFilterBackend
+from user.filters import *
 from .models import *
 from .permissions import IsSuperAdminOrReadOnly, CustomTeamPermission
-from .serializers import MatchSerializer, MatchHighlightSerializer, UserSerializer, TeamSerializer, PlayerSerializer, \
-    HighlightLikeSerializer
+from .serializers import MatchSerializer, MatchHighlightSerializer, UserSerializer, TeamSerializer, PlayerSerializer
 
 
 # from .serializers import UserSerializer
@@ -218,10 +217,28 @@ class HighlightsviewSet(ModelViewSet):
     queryset = MatchHighlight.objects.all()
     serializer_class = MatchHighlightSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [CustomHighlightFilterBackend]
+    filter_backends = [CustomHighlightFilterBackend, CustomLikeCountFilter]
+
+    @action(detail=True, methods=['post'])
+    def like(self, request, pk=None):
+        highlight = self.get_object()
+        user = request.user
+
+        if highlight.liked_by_user.filter(id=user.id).exists():
+            return Response({"message": "You have already liked this highlight"}, status=status.HTTP_400_BAD_REQUEST)
+
+        highlight.liked_by_user.add(user)
+        return Response({"message": "Highlight liked successfully"}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'])
+    def like_count(self, request, pk=None):
+        highlight = self.get_object()
+        like_count = highlight.liked_by_user.count()
+        return Response({"like_count": like_count}, status=status.HTTP_200_OK)
 
     def get_queryset(self):
         user = self.request.user
+
 
         # Handle unauthenticated requests
         if not user.is_authenticated:
@@ -234,6 +251,8 @@ class HighlightsviewSet(ModelViewSet):
             return MatchHighlight.objects.filter(uploaded_by=self.request.user)
         else:
             return MatchHighlight.objects.filter(active=True)
+
+
 
 
 class MatchViewSet(ModelViewSet):
@@ -279,34 +298,3 @@ class PlayerViewSet(ModelViewSet):
     queryset = Player.objects.all()
     serializer_class = PlayerSerializer
     permission_classes = [CustomTeamPermission]
-
-class HighlightLikeViewset(viewsets.ModelViewSet):
-    queryset = HighlightLike.objects.all()
-    serializer_class = HighlightLikeSerializer
-
-    @action(detail=True, methods=['post'])
-    def like(self, request, pk=None):
-        try:
-            highlight = MatchHighlight.objects.get(pk=pk)
-        except MatchHighlight.DoesNotExist:
-            return Response({
-                "message": "No highlights found"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if HighlightLike.objects.filter(highlight=highlight, liked_by=request.user).exists():
-            return Response({"message": 'You have already liked this post'})
-
-        like = HighlightLike.objects.create(highlight=highlight, liked_by=request.user)
-        serializer = self.get_serializer(like)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods='get')
-    def like_count(self, request, pk=None):
-        try:
-            highlight = MatchHighlight.objects.get(pk=pk)
-        except MatchHighlight.DoesNotExist:
-            return Response({
-                "message": "No highlights found"
-            }, status=status.HTTP_400_BAD_REQUEST)
-        like_count = highlight.likes.count()
-        return Response({"like count": like_count}, status=status.HTTP_200_OK)

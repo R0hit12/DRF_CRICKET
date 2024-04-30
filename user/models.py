@@ -72,6 +72,7 @@ class MatchHighlight(models.Model):
     upload_date = models.DateTimeField(auto_now_add=True)
     highlight_url = models.URLField(blank=True)  # URL field to store the highlight file URL
     active = models.BooleanField(default=False)
+    liked_by_user = models.ManyToManyField(User, related_name='liked_highlights', blank=True)
     testing = models.CharField(max_length=100, null=True, blank=True)
     views = models.IntegerField(default=0)
 
@@ -96,11 +97,3 @@ class MatchHighlight(models.Model):
     def __str__(self):
         return f"{self.match} - {self.upload_date}"
 
-
-class HighlightLike(models.Model):
-    highlight = models.ForeignKey(MatchHighlight, related_name='likes', on_delete=models.CASCADE)
-    liked_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    like_date = models.DateTimeField(auto_now_add= True)
-
-    class Meta:
-        unique_together = ('highlight', 'liked_by')

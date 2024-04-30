@@ -35,8 +35,8 @@ class TeamSerializer(serializers.ModelSerializer):
 
 class MatchSerializer(serializers.ModelSerializer):
     is_upcoming = serializers.SerializerMethodField()
-    team1 = serializers.CharField(source= "team1.team_name")
-    team2 = serializers.CharField(source= "team2.team_name")
+    team1 = serializers.CharField(source="team1.team_name")
+    team2 = serializers.CharField(source="team2.team_name")
 
     class Meta:
         model = Match
@@ -53,12 +53,20 @@ class MatchHighlightSerializer(serializers.ModelSerializer):
     uploaded_by = serializers.CharField(source='uploaded_by.username',
                                         read_only=True)  # Use 'uploaded_by.username' to get the username
     like_count = serializers.SerializerMethodField()
+    liked_by_user = serializers.SerializerMethodField()
+
     class Meta:
         model = MatchHighlight
-        fields = ['id', 'match', 'uploaded_by', 'highlight', 'highlight_url', 'upload_date', 'active', 'testing','like_count','views']
+        fields = ['id', 'match', 'uploaded_by', 'highlight', 'highlight_url', 'upload_date', 'active', 'testing',
+                  'like_count', 'views', 'liked_by_user']
 
     def get_like_count(self, obj):
-        return obj.likes.count()
+        return obj.liked_by_user.count()
+
+    def get_liked_by_user(self, obj):
+        liked_users = obj.liked_by_user.all()
+        return [user.username for user in liked_users]
+
     def create(self, validated_data):
         user = self.context['request'].user
         highlight = validated_data['highlight']
@@ -135,13 +143,3 @@ class MatchHighlightSerializer(serializers.ModelSerializer):
                 instance.save()
 
         return super().to_representation(instance)
-class HighlightLikeSerializer(serializers.ModelSerializer):
-    liked_by = serializers.CharField(source='liked_by.username', read_only=True)
-
-    class Meta:
-        model = HighlightLike
-        fields = '__all__'
-
-
-
-
