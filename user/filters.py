@@ -1,6 +1,6 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
-from rest_framework import filters
+from rest_framework import filters, serializers
 
 from user.models import User
 
@@ -60,3 +60,24 @@ class CustomLikeCountFilter(filters.BaseFilterBackend):
             queryset = queryset.annotate(num_likes=Count('liked_by_user')).filter(num_likes__lte=most_likes)
 
         return queryset
+
+from django.utils.timezone import datetime
+class MatchDetailFilter(filters.BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        date = request.query_params.get('date')
+
+        if date:
+            try:
+                # Parse the date parameter into a datetime.date object
+                date = datetime.strptime(date, "%Y-%m-%d").date()
+                # Filter the queryset to get matches happening on the given date
+                queryset = queryset.filter(match_date=date)
+
+                # Check if the filtered queryset is empty
+                if not queryset.exists():
+                    raise serializers.ValidationError("No matches found on this date.")
+            except ValueError:
+                raise serializers.ValidationError("Invalid date format. Date should be in YYYY-MM-DD format.")
+
+        return queryset
+

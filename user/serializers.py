@@ -34,9 +34,13 @@ class TeamSerializer(serializers.ModelSerializer):
 
 
 class MatchSerializer(serializers.ModelSerializer):
+    uploaded_by = serializers.CharField(source='uploaded_by.username',
+                                        read_only=True)
     is_upcoming = serializers.SerializerMethodField()
     team1 = serializers.CharField(source="team1.team_name")
     team2 = serializers.CharField(source="team2.team_name")
+    team1_players = serializers.PrimaryKeyRelatedField(queryset=Player.objects.all(), many=True)
+    team2_players = serializers.PrimaryKeyRelatedField(queryset=Player.objects.all(), many=True)
 
     class Meta:
         model = Match
@@ -44,6 +48,109 @@ class MatchSerializer(serializers.ModelSerializer):
 
     def get_is_upcoming(self, obj):
         return obj.match_date > timezone.now().date()
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        team1_players = representation.get('team1_players', [])
+        team2_players = representation.get('team2_players', [])
+
+        # Convert primary keys to player names
+        team1_player_names = [player.player_name for player in Player.objects.filter(pk__in=team1_players)]
+        team2_player_names = [player.player_name for player in Player.objects.filter(pk__in=team2_players)]
+
+        representation['team1_players'] = team1_player_names
+        representation['team2_players'] = team2_player_names
+
+        return representation
+
+    def validate(self, data):
+        team1_players = data.get('team1_players')
+        team2_players = data.get('team2_players')
+        team1_name_dict = data.get('team1')
+        # print(team1_name)
+        team2_name_dict = data.get('team2')
+        match_date = data.get('match_date')
+        print(match_date, "===========match date")
+
+        # Extract team names from dictionaries
+        team1_name = team1_name_dict.get('team_name')
+        team2_name = team2_name_dict.get('team_name')
+        # Obtain team objects
+        team1 = Team.objects.get(team_name=team1_name)
+        team2 = Team.objects.get(team_name=team2_name)
+
+        # Obtain queryset of players for each team
+        team1_players_queryset = Player.objects.filter(pk__in=[player.pk for player in team1_players], team=team1)
+        team2_players_queryset = Player.objects.filter(pk__in=[player.pk for player in team2_players], team=team2)
+
+        if team1_players_queryset.count() != len(team1_players):
+            raise serializers.ValidationError("One or more team1_players do not belong to team1")
+
+        if team2_players_queryset.count() != len(team2_players):
+            raise serializers.ValidationError(team2_players, "One or more team2_players do not belong to team2")
+
+        instance = self.instance
+        if instance is not None:
+            # Exclude the current instance from the query
+            existing_matches = Match.objects.exclude(pk=instance.pk).filter(match_date=match_date, team1=team1,
+                                                                            team2=team2)
+        else:
+            existing_matches = Match.objects.filter(match_date=match_date, team1=team1, team2=team2)
+
+        if existing_matches.exists():
+            # If there are existing matches and it's not the instance being updated, raise validation error
+            if instance is None or not existing_matches.filter(pk=instance.pk).exists():
+                raise serializers.ValidationError("A match with the same teams on the same date already exists.")
+
+        return data
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        print(user, "match user-------")
+        team1_name_dict = validated_data.pop('team1')
+        team2_name_dict = validated_data.pop('team2')
+        team1_name = team1_name_dict.get('team_name')
+        team2_name = team2_name_dict.get('team_name')
+
+        try:
+            team1 = Team.objects.get(team_name=team1_name)
+        except Team.DoesNotExist:
+            raise serializers.ValidationError("Team 1 does not exist.")
+
+        try:
+            team2 = Team.objects.get(team_name=team2_name)
+        except Team.DoesNotExist:
+            raise serializers.ValidationError("Team 2 does not exist.")
+
+        validated_data['team1'] = team1
+        validated_data['team2'] = team2
+        validated_data['uploaded_by'] = user
+
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Update team names
+        team1_name_dict = validated_data.pop('team1')
+        team2_name_dict = validated_data.pop('team2')
+        team1_name = team1_name_dict.get('team_name')
+        team2_name = team2_name_dict.get('team_name')
+
+        # Retrieve team objects
+        team1 = Team.objects.get(team_name=team1_name)
+        team2 = Team.objects.get(team_name=team2_name)
+
+        # Update instance fields
+        instance.match_date = validated_data.get('match_date', instance.match_date)
+        # Update other fields similarly
+
+        # Update team fields
+        instance.team1 = team1
+        instance.team2 = team2
+
+        # Save the instance
+        instance.save()
+
+        return instance
 
 
 class MatchHighlightSerializer(serializers.ModelSerializer):

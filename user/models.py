@@ -46,11 +46,13 @@ class Player(models.Model):
 
 
 class Match(models.Model):
-    # schedule = models.DateTimeField()
+    uploaded_by = models.ForeignKey(User, on_delete= models.CASCADE)
     team1 = models.ForeignKey(Team, related_name="team_1", on_delete=models.CASCADE)
     team2 = models.ForeignKey(Team, related_name="team_2", on_delete=models.CASCADE)
     match_date = models.DateField()
     location = models.CharField(max_length=100)
+    team1_players = models.ManyToManyField(Player, related_name= 'team1_players')
+    team2_players = models.ManyToManyField(Player, related_name= 'team2_players')
 
     @property
     def is_upcoming(self):
@@ -70,7 +72,7 @@ class MatchHighlight(models.Model):
     highlight = models.FileField(upload_to=highlight_file_path)
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
     upload_date = models.DateTimeField(auto_now_add=True)
-    highlight_url = models.URLField(blank=True)  # URL field to store the highlight file URL
+    # highlight_url = models.URLField(blank=True)  # URL field to store the highlight file URL
     active = models.BooleanField(default=False)
     liked_by_user = models.ManyToManyField(User, related_name='liked_highlights', blank=True)
     testing = models.CharField(max_length=100, null=True, blank=True)
@@ -80,20 +82,19 @@ class MatchHighlight(models.Model):
         verbose_name = 'Match Highlight'
         verbose_name_plural = 'Match Highlights'
 
-    def save(self, *args, **kwargs):
-        """Override the save method to set the highlight_url."""
-        if self.highlight and not self.highlight_url:
-            # Generate the URL based on the file path
-            self.highlight_url = self.get_highlight_url()
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     """Override the save method to set the highlight_url."""
+    #     if self.highlight and not self.highlight_url:
+    #         # Generate the URL based on the file path
+    #         self.highlight_url = self.get_highlight_url()
+    #     super().save(*args, **kwargs)
 
-    def get_highlight_url(self):
-        """Generate and return the URL for the uploaded highlight file."""
-        if self.highlight:
-            # Construct the absolute URL using settings.MEDIA_URL
-            return f'{settings.MEDIA_URL}{self.highlight.name}'
-        return ''
+    # def get_highlight_url(self):
+    #     """Generate and return the URL for the uploaded highlight file."""
+    #     if self.highlight:
+    #         # Construct the absolute URL using settings.MEDIA_URL
+    #         return f'{settings.MEDIA_URL}{self.highlight.name}'
+    #     return ''
 
     def __str__(self):
         return f"{self.match} - {self.upload_date}"
-

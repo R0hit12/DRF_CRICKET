@@ -7,13 +7,13 @@ class IsSuperAdminOrReadOnly(BasePermission):
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
             return True  # Allow read-only permissions for GET requests
         user_role = request.user.role
-        return request.user.is_authenticated and user_role.roles == 'Superadmin'
+        return request.user.is_authenticated and user_role.roles in ['Superadmin', 'Streamer']
 
     def has_object_permission(self, request, view, obj):
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
             return True  # Allow read-only permissions for GET requests
         user_role = request.user.role
-        return request.user.is_authenticated and user_role.roles == 'Superadmin'
+        return request.user.is_authenticated and user_role.roles in ['Superadmin', 'Streamer']
 
 
 class CustomTeamPermission(permissions.BasePermission):

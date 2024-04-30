@@ -259,6 +259,7 @@ class MatchViewSet(ModelViewSet):
     queryset = Match.objects.all()
     serializer_class = MatchSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [MatchDetailFilter]
 
     def get_permissions(self):
         if self.request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
@@ -268,13 +269,16 @@ class MatchViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        current_date = timezone.now().date()
 
         if not user.is_authenticated:
             raise PermissionDenied("Login required")
         if user.role.roles == "Superadmin":
             return Match.objects.all()
+        if user.role.roles == "Streamer":
+            return Match.objects.filter(uploaded_by = user)
         # Filter out matches where match_date is not upcoming
-        return Match.objects.filter(match_date__gt=timezone.now().date())
+        return Match.objects.filter(match_date__gte=current_date)
 
     def handle_exception(self, exc):
         """
