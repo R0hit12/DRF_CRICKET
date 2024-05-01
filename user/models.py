@@ -53,6 +53,7 @@ class Match(models.Model):
     location = models.CharField(max_length=100)
     team1_players = models.ManyToManyField(Player, related_name= 'team1_players')
     team2_players = models.ManyToManyField(Player, related_name= 'team2_players')
+    show = models.BooleanField(default= False)
 
     @property
     def is_upcoming(self):
@@ -76,7 +77,7 @@ class MatchHighlight(models.Model):
     active = models.BooleanField(default=False)
     liked_by_user = models.ManyToManyField(User, related_name='liked_highlights', blank=True)
     testing = models.CharField(max_length=100, null=True, blank=True)
-    views = models.IntegerField(default=0)
+    views = models.IntegerField(null= True, blank= True)
 
     class Meta:
         verbose_name = 'Match Highlight'

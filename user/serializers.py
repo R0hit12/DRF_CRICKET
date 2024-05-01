@@ -114,6 +114,11 @@ class MatchSerializer(serializers.ModelSerializer):
         team2_name_dict = validated_data.pop('team2')
         team1_name = team1_name_dict.get('team_name')
         team2_name = team2_name_dict.get('team_name')
+        try:
+            if user.role.roles not in ['Streamer', 'Superadmin']:  # Check if user has appropriate role
+                raise ValidationError("You are not authorized to create Matches")
+        except Exception as e:
+            raise ValidationError("An error occurred: {}".format(str(e)))
 
         try:
             team1 = Team.objects.get(team_name=team1_name)
@@ -133,39 +138,55 @@ class MatchSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
+        # £Allow user with role streamer to update fields expect active field
+        if user.role.roles in ["Streamer", "Superadmin"]:
+            if user.role.roles == "Streamer":
 
-        # Update basic fields
-        instance.match_date = validated_data.get('match_date', instance.match_date)
-        instance.location = validated_data.get('location', instance.location)
+                if instance.uploaded_by != user:
+                    raise serializers.ValidationError("You are not author of this post")
 
-        # Update team1 if provided
-        team1_data = validated_data.get('team1')
-        if team1_data:
-            team1_name = team1_data.get('team_name')
-            try:
-                team1_instance = Team.objects.get(team_name=team1_name)
-                instance.team1 = team1_instance
-            except Team.DoesNotExist:
-                raise serializers.ValidationError("Team 1 does not exist.")
+                # "Check for show field in validate data"
+                if "show" in validated_data:
+                    raise serializers.ValidationError("Streamer not allowed to change the show field")
+            elif user.role.roles == "Superadmin":
+                instance.show = validated_data.get('show', instance.show)
+            # Update basic fields
+            instance.match_date = validated_data.get('match_date', instance.match_date)
+            instance.location = validated_data.get('location', instance.location)
 
-        # Update team2 if provided
-        team2_data = validated_data.get('team2')
-        if team2_data:
-            team2_name = team2_data.get('team_name')
-            try:
-                team2_instance = Team.objects.get(team_name=team2_name)
-                instance.team2 = team2_instance
-            except Team.DoesNotExist:
-                raise serializers.ValidationError("Team 2 does not exist.")
+            # Update team1 if provided
+            team1_data = validated_data.get('team1')
+            if team1_data:
+                team1_name = team1_data.get('team_name')
+                try:
+                    team1_instance = Team.objects.get(team_name=team1_name)
+                    instance.team1 = team1_instance
+                except Team.DoesNotExist:
+                    raise serializers.ValidationError("Team 1 does not exist.")
 
-        # Update many-to-many relationships using .set() method
-        if 'team1_players' in validated_data:
-            instance.team1_players.set(validated_data['team1_players'])
-        if 'team2_players' in validated_data:
-            instance.team2_players.set(validated_data['team2_players'])
+            # Update team2 if provided
+            team2_data = validated_data.get('team2')
+            if team2_data:
+                team2_name = team2_data.get('team_name')
+                try:
+                    team2_instance = Team.objects.get(team_name=team2_name)
+                    instance.team2 = team2_instance
+                except Team.DoesNotExist:
+                    raise serializers.ValidationError("Team 2 does not exist.")
 
-        instance.save()
-        return instance
+            # Update many-to-many relationships using .set() method
+            if 'team1_players' in validated_data:
+                instance.team1_players.set(validated_data['team1_players'])
+            if 'team2_players' in validated_data:
+                instance.team2_players.set(validated_data['team2_players'])
+
+            instance.save()
+            return instance
+        else:
+            raise serializers.ValidationError("NOT AUTHORIZED")
+
+
+
 
 
 class MatchHighlightSerializer(serializers.ModelSerializer):
