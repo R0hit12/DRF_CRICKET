@@ -66,41 +66,44 @@ class MatchSerializer(serializers.ModelSerializer):
     def validate(self, data):
         team1_players = data.get('team1_players')
         team2_players = data.get('team2_players')
-        team1_name_dict = data.get('team1')
-        # print(team1_name)
-        team2_name_dict = data.get('team2')
         match_date = data.get('match_date')
-        print(match_date, "===========match date")
 
-        # Extract team names from dictionaries
-        team1_name = team1_name_dict.get('team_name')
-        team2_name = team2_name_dict.get('team_name')
-        # Obtain team objects
-        team1 = Team.objects.get(team_name=team1_name)
-        team2 = Team.objects.get(team_name=team2_name)
+        # Extract team names and other data directly from validated_data for update requests
+        team1_name = data.get('team1').get('team_name') if 'team1' in data else None
+        team2_name = data.get('team2').get('team_name') if 'team2' in data else None
 
-        # Obtain queryset of players for each team
-        team1_players_queryset = Player.objects.filter(pk__in=[player.pk for player in team1_players], team=team1)
-        team2_players_queryset = Player.objects.filter(pk__in=[player.pk for player in team2_players], team=team2)
+        # Check if team names are provided
+        if team1_name and team2_name:
+            try:
+                # Obtain team objects
+                team1 = Team.objects.get(team_name=team1_name)
+                team2 = Team.objects.get(team_name=team2_name)
+            except Team.DoesNotExist:
+                raise serializers.ValidationError("One of the teams does not exist.")
 
-        if team1_players_queryset.count() != len(team1_players):
-            raise serializers.ValidationError("One or more team1_players do not belong to team1")
+            # Obtain queryset of players for each team
+            team1_players_queryset = Player.objects.filter(pk__in=[player.pk for player in team1_players], team=team1)
+            team2_players_queryset = Player.objects.filter(pk__in=[player.pk for player in team2_players], team=team2)
 
-        if team2_players_queryset.count() != len(team2_players):
-            raise serializers.ValidationError(team2_players, "One or more team2_players do not belong to team2")
+            # Validate players
+            if team1_players_queryset.count() != len(team1_players):
+                raise serializers.ValidationError("One or more team1_players do not belong to team1")
 
-        instance = self.instance
-        if instance is not None:
-            # Exclude the current instance from the query
-            existing_matches = Match.objects.exclude(pk=instance.pk).filter(match_date=match_date, team1=team1,
-                                                                            team2=team2)
-        else:
-            existing_matches = Match.objects.filter(match_date=match_date, team1=team1, team2=team2)
+            if team2_players_queryset.count() != len(team2_players):
+                raise serializers.ValidationError("One or more team2_players do not belong to team2")
 
-        if existing_matches.exists():
-            # If there are existing matches and it's not the instance being updated, raise validation error
-            if instance is None or not existing_matches.filter(pk=instance.pk).exists():
-                raise serializers.ValidationError("A match with the same teams on the same date already exists.")
+            instance = self.instance
+            if instance is not None:
+                # Exclude the current instance from the query
+                existing_matches = Match.objects.exclude(pk=instance.pk).filter(match_date=match_date, team1=team1,
+                                                                                team2=team2)
+            else:
+                existing_matches = Match.objects.filter(match_date=match_date, team1=team1, team2=team2)
+
+            if existing_matches.exists():
+                # If there are existing matches and it's not the instance being updated, raise validation error
+                if instance is None or not existing_matches.filter(pk=instance.pk).exists():
+                    raise serializers.ValidationError("A match with the same teams on the same date already exists.")
 
         return data
 
@@ -129,27 +132,39 @@ class MatchSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        # Update team names
-        team1_name_dict = validated_data.pop('team1')
-        team2_name_dict = validated_data.pop('team2')
-        team1_name = team1_name_dict.get('team_name')
-        team2_name = team2_name_dict.get('team_name')
+        user = self.context['request'].user
 
-        # Retrieve team objects
-        team1 = Team.objects.get(team_name=team1_name)
-        team2 = Team.objects.get(team_name=team2_name)
-
-        # Update instance fields
+        # Update basic fields
         instance.match_date = validated_data.get('match_date', instance.match_date)
-        # Update other fields similarly
+        instance.location = validated_data.get('location', instance.location)
 
-        # Update team fields
-        instance.team1 = team1
-        instance.team2 = team2
+        # Update team1 if provided
+        team1_data = validated_data.get('team1')
+        if team1_data:
+            team1_name = team1_data.get('team_name')
+            try:
+                team1_instance = Team.objects.get(team_name=team1_name)
+                instance.team1 = team1_instance
+            except Team.DoesNotExist:
+                raise serializers.ValidationError("Team 1 does not exist.")
 
-        # Save the instance
+        # Update team2 if provided
+        team2_data = validated_data.get('team2')
+        if team2_data:
+            team2_name = team2_data.get('team_name')
+            try:
+                team2_instance = Team.objects.get(team_name=team2_name)
+                instance.team2 = team2_instance
+            except Team.DoesNotExist:
+                raise serializers.ValidationError("Team 2 does not exist.")
+
+        # Update many-to-many relationships using .set() method
+        if 'team1_players' in validated_data:
+            instance.team1_players.set(validated_data['team1_players'])
+        if 'team2_players' in validated_data:
+            instance.team2_players.set(validated_data['team2_players'])
+
         instance.save()
-
         return instance
 
 
