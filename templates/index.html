@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,39 +26,21 @@
             chatBox.appendChild(messageElement);
         }
 
-// Function to append bot responses to session storage
+// Function to append bot responses to the <p> tag
 function appendBotResponse(response) {
-    // Retrieve existing responses from session storage or initialize an empty array
-    let botResponses = JSON.parse(sessionStorage.getItem('botResponses')) || [];
-
+    const botResponses = document.getElementById('bot-responses');
     if (response.trim() !== '') { // Check if response is not empty
         if (response.trim() === '__END_OF_RESPONSES__') {
-            botResponses.push('<br>'); // Push a line break to the responses array
+            botResponses.innerHTML += '<br>'; // Replace __END_OF_RESPONSES__ with a line break
         } else {
-            botResponses.push(response.trim()); // Push response to the responses array
-        }
-
-        // Store the updated responses array in session storage
-        sessionStorage.setItem('botResponses', JSON.stringify(botResponses));
-    }
-}
-
-// Function to retrieve and display bot responses from session storage
-function displayStoredBotResponses() {
-    const botResponses = JSON.parse(sessionStorage.getItem('botResponses'));
-    if (botResponses && botResponses.length > 0) {
-        const botResponsesElement = document.getElementById('bot-responses');
-        botResponses.forEach(response => {
-            if (response.trim() === '<br>') {
-                botResponsesElement.innerHTML += '<br>';
+            if (botResponses.innerText.trim() === '') { // Check if botResponses is empty
+                botResponses.innerText += response.trim(); // Append response without space if empty
             } else {
-                botResponsesElement.innerHTML += response.trim() + ' ';
+                botResponses.innerHTML += ' ' + response.trim(); // Append response with space if not empty
             }
-        });
+        }
     }
 }
-
-
 
 
         // Function to send user input to the server and receive responses
@@ -126,8 +107,10 @@ function displayStoredBotResponses() {
         }
 
         sendBtn.addEventListener('click', sendMessage);
-        window.addEventListener('load', displayStoredBotResponses);
     </script>
 
 </body>
 </html>
+
+
+
