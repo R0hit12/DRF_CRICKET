@@ -186,9 +186,6 @@ class MatchSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("NOT AUTHORIZED")
 
 
-
-
-
 class MatchHighlightSerializer(serializers.ModelSerializer):
     match = serializers.PrimaryKeyRelatedField(queryset=Match.objects.all())
     highlight = serializers.FileField()

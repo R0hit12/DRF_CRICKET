@@ -8,6 +8,7 @@ import pyotp
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
+from django.shortcuts import render
 from rest_framework import exceptions, viewsets
 from rest_framework import status
 from rest_framework.decorators import action
@@ -25,8 +26,11 @@ from .permissions import IsSuperAdminOrReadOnly, CustomTeamPermission
 from .serializers import MatchSerializer, MatchHighlightSerializer, UserSerializer, TeamSerializer, PlayerSerializer
 
 
-# from .serializers import UserSerializer
 
+
+
+def index(request):
+    return render(request, 'index.html')
 
 class UserRegistrationView(ModelViewSet):
     queryset = User.objects.all()
