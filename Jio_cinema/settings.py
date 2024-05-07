@@ -55,6 +55,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+# Session Engine
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+# Optionally, you can set session expiration settings
+SESSION_COOKIE_AGE = 3600   # Session expires in 1 hour (in seconds)
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
