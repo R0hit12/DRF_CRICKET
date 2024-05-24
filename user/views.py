@@ -281,7 +281,6 @@ class MatchViewSet(ModelViewSet):
             return Match.objects.all()
         if user.role.roles == "Streamer":
             return Match.objects.filter(uploaded_by = user)
-        # Filter out matches where match_date is not upcoming
         return Match.objects.filter(match_date__gte=current_date)
 
     def handle_exception(self, exc):

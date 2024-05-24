@@ -2,7 +2,7 @@ import json
 from django.utils import timezone
 
 import requests
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 
 # Create your views here.
 from django.http import StreamingHttpResponse, JsonResponse, request
@@ -19,14 +19,13 @@ client = OpenAI(
 
 # views.py
 
-
 @csrf_exempt
 def stream_completions(request):
     if request.method == 'GET':
         return render(request, 'index.html')
     elif request.method == 'POST':
         user = request.user
-        print(user, "Userrr")
+        print(user, "User")
         data = json.loads(request.body.decode('utf-8'))
         user_message = data.get('message', '')
         if user_message:
@@ -59,7 +58,11 @@ def stream_completions(request):
                 response_1 = request.session.get('response_1', [])
                 response_1.append(clean_up_list(list1))
                 request.session['response_1'] = response_1
-                print(request.session.get('response_1'))
+                print(request.session.get('response_1'), "RESPONSE_1")
+
+                session_data = request.session
+                for key, value in session_data.items():
+                    print(f"-------{key}:------------ {value}")
                 yield json.dumps({'completion': '__END_OF_RESPONSES__'}) + '\n'
 
             # Return a streaming HTTP response with the generated JSON responses
@@ -69,7 +72,6 @@ def stream_completions(request):
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
-
 def clean_up_list(list_to_clean):
     # Join the list elements into a single string
     text = ' '.join(list_to_clean)
@@ -77,18 +79,23 @@ def clean_up_list(list_to_clean):
     # Remove unnecessary spaces
     text = ' '.join(text.split())
 
-    # Capitalize the first letter of each sentence
-    cleaned_text = '. '.join(sentence.capitalize() for sentence in text.split('. '))
+    sentences = text.split('. ')
+    cleaned_text = '. '.join(sentence.strip().capitalize() for sentence in sentences)
 
     return cleaned_text
 
 
 def show_completions(request):
-    stream_completions(request)
     user_message = request.session.get('messages')
-    print(user_message,"hshshhs")
+    print(user_message, "mesage here")
+
     session_created = request.session.get('session_creation_time')
     answer = request.session.get('response_1')
     print(answer, "ANSWER")
     return render(request, 'session_data.html',
                   {'user_message': user_message, 'session': session_created, 'answer': answer})
+
+
+def end_session(request):
+    request.session.clear()
+    return redirect('stream')
